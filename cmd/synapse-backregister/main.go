@@ -68,7 +68,6 @@ func main() {
 		if req.Method == "POST" {
 			uname := req.FormValue("Username")
 			pass := req.FormValue("Password")
-			log.Printf("Got %v %v", uname, pass)
 
 			if uname == "" {
 				w.WriteHeader(400)
@@ -106,10 +105,7 @@ func main() {
 				"type":     "org.matrix.login.shared_secret",
 				"admin":    strconv.FormatBool(admin),
 			}
-
-			serverLocation := strings.TrimRight(matrixServer, "/")
-
-			reqJson, err := json.Marshal(serverLocation)
+			reqJson, err := json.Marshal(synapseReqData)
 			if err != nil {
 				w.WriteHeader(400)
 				err := htmlTemplate.Execute(w, map[string]string{"Notice": "OH NO INTERNAL JSON FAILURE!"})
@@ -118,7 +114,18 @@ func main() {
 				}
 				return
 			}
+
+			serverLocation := strings.TrimRight(matrixServer, "/")
 			regResp, err := http.Post(fmt.Sprintf("%s/_matrix/client/api/v1/register", serverLocation), "application/json", bytes.NewReader(reqJson))
+			if err != nil {
+				log.Printf("error: %v", err)
+				w.WriteHeader(500)
+				err := htmlTemplate.Execute(w, map[string]string{"Notice": "Error hitting registration server"})
+				if err != nil {
+					log.Printf("error with registration: %v", err)
+				}
+				return
+			}
 			if regResp.StatusCode > 400 {
 				w.WriteHeader(regResp.StatusCode)
 				err := htmlTemplate.Execute(w, map[string]string{"Notice": "Registration error :(!"})
@@ -129,7 +136,7 @@ func main() {
 			}
 
 			w.WriteHeader(200)
-			err := htmlTemplate.Execute(w, map[string]string{"Notice": "You're registered!"})
+			err = htmlTemplate.Execute(w, map[string]string{"Notice": "You're registered!"})
 			if err != nil {
 				log.Printf("error with tmpl: %v", err)
 			}
