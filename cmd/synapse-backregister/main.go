@@ -95,6 +95,8 @@ func main() {
 			hm.Write([]byte{0})
 			if admin {
 				hm.Write([]byte("admin"))
+			} else {
+				hm.Write([]byte("notadmin"))
 			}
 			hexDigest := hex.EncodeToString(hm.Sum(nil))
 
