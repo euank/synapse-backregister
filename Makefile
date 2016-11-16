@@ -3,3 +3,6 @@ all:
 
 docker:
 	docker build -t euank/synapse-backregister:latest .
+
+clean: 
+	rm -f ./bin/synapse-backregister
