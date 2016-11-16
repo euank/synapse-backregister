@@ -11,7 +11,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -100,13 +99,23 @@ func main() {
 			}
 			hexDigest := hex.EncodeToString(hm.Sum(nil))
 
-			synapseReqData := map[string]string{
+			synapseReqData := map[string]interface{}{
 				"user":     uname,
 				"password": pass,
 				"mac":      hexDigest,
 				"type":     "org.matrix.login.shared_secret",
-				"admin":    strconv.FormatBool(admin),
 			}
+			if admin {
+				// If admin is true, then the value for this key is a string. Thanks
+				// python. <3 that weak typing
+				synapseReqData["admin"] = "true"
+			} else {
+				// Else it has to be a bool.
+				// This typing bs is the only way to make the hmac verify. TODO fix
+				// upstream. srsly. why.
+				synapseReqData["admin"] = false
+			}
+
 			reqJson, err := json.Marshal(synapseReqData)
 			if err != nil {
 				w.WriteHeader(400)
