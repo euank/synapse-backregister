@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -116,7 +117,16 @@ func main() {
 				logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "Error hitting registration server"}))
 				return
 			}
-			if regResp.StatusCode > 400 {
+			if regResp.StatusCode >= 400 {
+				body, err := ioutil.ReadAll(regResp.Body)
+				if err != nil {
+					log.Printf("error reading synapse body: %v", err)
+				} else if strings.Contains(string(body), "User ID already taken") {
+					w.WriteHeader(regResp.StatusCode)
+					logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "Username already in use"}))
+					return
+				}
+
 				w.WriteHeader(regResp.StatusCode)
 				logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "Registration error :(!"}))
 				return
