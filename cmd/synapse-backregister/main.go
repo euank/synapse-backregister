@@ -70,19 +70,13 @@ func main() {
 
 			if uname == "" {
 				w.WriteHeader(400)
-				err := htmlTemplate.Execute(w, map[string]string{"Notice": "Must enter a username"})
-				if err != nil {
-					log.Printf("error with tmpl: %v", err)
-				}
+				logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "Must enter a username"}))
 				return
 			}
 
 			if len(pass) < 10 {
 				w.WriteHeader(400)
-				err := htmlTemplate.Execute(w, map[string]string{"Notice": "Password must be 10+ chars"})
-				if err != nil {
-					log.Printf("error with tmpl: %v", err)
-				}
+				logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "Password must be 10+ chars"}))
 				return
 			}
 
@@ -110,10 +104,7 @@ func main() {
 			reqJson, err := json.Marshal(synapseReqData)
 			if err != nil {
 				w.WriteHeader(400)
-				err := htmlTemplate.Execute(w, map[string]string{"Notice": "OH NO INTERNAL JSON FAILURE!"})
-				if err != nil {
-					log.Printf("error with json: %v", err)
-				}
+				logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "OH NO INTERNAL JSON FAILURE!"}))
 				return
 			}
 
@@ -122,34 +113,28 @@ func main() {
 			if err != nil {
 				log.Printf("error: %v", err)
 				w.WriteHeader(500)
-				err := htmlTemplate.Execute(w, map[string]string{"Notice": "Error hitting registration server"})
-				if err != nil {
-					log.Printf("error with registration: %v", err)
-				}
+				logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "Error hitting registration server"}))
 				return
 			}
 			if regResp.StatusCode > 400 {
 				w.WriteHeader(regResp.StatusCode)
-				err := htmlTemplate.Execute(w, map[string]string{"Notice": "Registration error :(!"})
-				if err != nil {
-					log.Printf("error with registration: %v", err)
-				}
+				logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "Registration error :(!"}))
 				return
 			}
 
 			w.WriteHeader(200)
-			err = htmlTemplate.Execute(w, map[string]string{"Notice": "You're registered!"})
-			if err != nil {
-				log.Printf("error with tmpl: %v", err)
-			}
+			logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "You're registered!"}))
 			return
 		} else {
 			w.WriteHeader(200)
-			err := htmlTemplate.Execute(w, map[string]string{})
-			if err != nil {
-				log.Printf("error with tmpl: %v", err)
-			}
+			logIfErr(htmlTemplate.Execute(w, map[string]string{}))
 			return
 		}
 	}))
+}
+
+func logIfErr(err error) {
+	if err != nil {
+		log.Printf("Unexpected error: %v", err)
+	}
 }
