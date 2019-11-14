@@ -80,9 +80,35 @@ func main() {
 				logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "Password must be 10+ chars"}))
 				return
 			}
+			serverLocation := strings.TrimRight(matrixServer, "/")
+			registerURL := fmt.Sprintf("%s/_matrix/client/r0/admin/register", serverLocation)
+
+			nonceResp, err := http.Get(registerURL)
+			if err != nil {
+				w.WriteHeader(400)
+				logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "Error getting nonce from synapse"}))
+				return
+			}
+
+			nonceRespBody, err := ioutil.ReadAll(nonceResp.Body)
+			if err != nil {
+				w.WriteHeader(400)
+				logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "Error reading nonce body from synapse"}))
+				return
+			}
+			respMap := map[string]string{}
+			if err := json.Unmarshal(nonceRespBody, &respMap); err != nil {
+				w.WriteHeader(400)
+				log.Printf("decoding error: %s, %v", nonceRespBody, err)
+				logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "Error decoding nonce from synapse"}))
+				return
+			}
+			nonce := respMap["nonce"]
 
 			hm := hmac.New(sha1.New, []byte(sharedSecret))
 
+			hm.Write([]byte(nonce))
+			hm.Write([]byte{0})
 			hm.Write([]byte(uname))
 			hm.Write([]byte{0})
 			hm.Write([]byte(pass))
@@ -95,22 +121,21 @@ func main() {
 			hexDigest := hex.EncodeToString(hm.Sum(nil))
 
 			synapseReqData := map[string]interface{}{
-				"user":     uname,
+				"nonce":    nonce,
+				"username": uname,
 				"password": pass,
 				"mac":      hexDigest,
-				"type":     "org.matrix.login.shared_secret",
 				"admin":    admin,
 			}
 
-			reqJson, err := json.Marshal(synapseReqData)
+			reqJSON, err := json.Marshal(synapseReqData)
 			if err != nil {
 				w.WriteHeader(400)
 				logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "OH NO INTERNAL JSON FAILURE!"}))
 				return
 			}
 
-			serverLocation := strings.TrimRight(matrixServer, "/")
-			regResp, err := http.Post(fmt.Sprintf("%s/_matrix/client/api/v1/register", serverLocation), "application/json", bytes.NewReader(reqJson))
+			regResp, err := http.Post(registerURL, "application/json", bytes.NewReader(reqJSON))
 			if err != nil {
 				log.Printf("error: %v", err)
 				w.WriteHeader(500)
@@ -127,6 +152,7 @@ func main() {
 					return
 				}
 
+				log.Printf("Registration error body: %s", body)
 				w.WriteHeader(regResp.StatusCode)
 				logIfErr(htmlTemplate.Execute(w, map[string]string{"Notice": "Registration error :(!"}))
 				return
